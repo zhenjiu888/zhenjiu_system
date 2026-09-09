@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医生后台 - 针灸病人管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f5f5; }
+        .header { background: #2e7d32; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 22px; }
+        .logout-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; border-radius: 8px; cursor: pointer; }
+        .logout-btn:hover { background: rgba(255,255,255,0.3); }
+        .main { max-width: 900px; margin: 20px auto; padding: 0 15px; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card h2 { color: #2e7d32; margin-bottom: 15px; font-size: 18px; }
+        .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; flex: 1; min-width: 120px; }
+        button { padding: 10px 20px; background: #2e7d32; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #1b5e20; }
+        button.secondary { background: #81c784; }
+        button.secondary:hover { background: #66bb6a; }
+        .msg { padding: 10px; border-radius: 8px; margin-top: 10px; display: none; font-size: 14px; }
+        .msg.error { background: #ffebee; color: #c62828; }
+        .msg.success { background: #e8f5e9; color: #2e7d32; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
+        th { background: #f5f5f5; color: #666; }
+        .patient-list { margin-top: 15px; }
+        .patient-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; }
+        .patient-item:hover { background: #f9f9f9; }
+        .balance { color: #2e7d32; font-weight: bold; }
+        .balance.low { color: #c62828; }
+        /* 登录弹窗 */
+        #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; }
+        #loginOverlay.hidden { display: none; }
+        .login-box { background: white; border-radius: 20px; padding: 40px; text-align: center; width: 90%; max-width: 350px; }
+        .login-box h2 { color: #2e7d32; margin-bottom: 20px; }
+        .login-box input { width: 100%; margin-bottom: 15px; }
+        .login-box button { width: 100%; }
+        #contentArea { display: none; }
+    </style>
+</head>
+<body>
+    <!-- 登录弹窗 -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2>👩‍⚕️ 医生登录</h2>
+            <input type="password" id="password" placeholder="请输入密码" />
+            <button onclick="login()">登录</button>
+            <div class="msg" id="loginMsg"></div>
+        </div>
+    </div>
+
+    <div id="contentArea">
+        <div class="header">
+            <h1>🏥 医生后台</h1>
+            <a href="/" style="color:white; text-decoration:none; margin-right:15px;">首页</a>
+            <button class="logout-btn" onclick="logout()">退出登录</button>
+        </div>
+
+        <div class="main">
+            <!-- 添加病人 -->
+            <div class="card">
+                <h2>➕ 添加新病人</h2>
+                <div class="form-row">
+                    <input type="text" id="newName" placeholder="姓名" />
+                    <input type="text" id="newPhone" placeholder="手机号" />
+                    <button onclick="addPatient()">添加</button>
+                </div>
+                <div class="msg" id="addMsg"></div>
+            </div>
+
+            <!-- 搜索病人 -->
+            <div class="card">
+                <h2>🔍 搜索病人</h2>
+                <div class="form-row">
+                    <input type="text" id="searchInput" placeholder="输入姓名或手机号" oninput="searchPatients()" />
+                </div>
+                <div class="patient-list" id="searchResults"></div>
+            </div>
+
+            <!-- 选中病人的操作 -->
+            <div class="card" id="operationCard" style="display:none;">
+                <h2 id="selectedPatientTitle"></h2>
+                <p>当前余额：<span id="selectedBalance" class="balance"></span></p>
+                <div class="form-row" style="margin-top:15px;">
+                    <input type="number" step="0.01" min="0.01" id="rechargeAmount" placeholder="充值金额" />
+                    <button class="secondary" onclick="recharge()">💳 充值</button>
+                </div>
+                <div class="form-row" style="margin-top:10px;">
+                    <input type="number" step="0.01" min="0.01" id="treatAmount" placeholder="本次针灸价格" />
+                    <input type="text" id="treatNote" placeholder="备注(可选)" />
+                    <button onclick="treat()">💉 扣费</button>
+                </div>
+                <div class="msg" id="opMsg"></div>
+                <!-- 该病人记录 -->
+                <div id="patientRecords"></div>
+            </div>
+
+            <!-- 导出表格 -->
+            <div class="card">
+                <h2>📊 导出月度表格</h2>
+                <div class="form-row">
+                    <input type="month" id="exportMonth" />
+                    <button onclick="exportExcel()">📥 导出Excel</button>
+                </div>
+                <div class="msg" id="exportMsg"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 登录
+        function login() {
+            const pw = document.getElementById('password').value;
+            fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({password: pw})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    document.getElementById('contentArea').style.display = 'block';
+                    document.getElementById('exportMonth').value = new Date().toISOString().slice(0,7);
+                } else {
+                    document.getElementById('loginMsg').textContent = data.detail || '登录失败';
+                    document.getElementById('loginMsg').style.display = 'block';
+                    document.getElementById('loginMsg').className = 'msg error';
+                }
+            })
+            .catch(() => {
+                document.getElementById('loginMsg').textContent = '登录失败，请重试';
+                document.getElementById('loginMsg').style.display = 'block';
+                document.getElementById('loginMsg').className = 'msg error';
+            });
+        }
+        
+        function logout() {
+            location.href = '/';
+        }
+
+        // 显示消息
+        function showMsg(id, text, isError) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.style.display = 'block';
+            el.className = 'msg ' + (isError ? 'error' : 'success');
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        // 添加病人
+        function addPatient() {
+            const name = document.getElementById('newName').value.trim();
+            const phone = document.getElementById('newPhone').value.trim();
+            if (!name || !phone) { showMsg('addMsg', '姓名和手机号必填', true); return; }
+            fetch('/api/add_patient', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, phone})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    showMsg('addMsg', '添加成功！', false);
+                    document.getElementById('newName').value = '';
+                    document.getElementById('newPhone').value = '';
+                    document.getElementById('searchInput').value = phone;
+                    searchPatients();
+                } else {
+                    showMsg('addMsg', data.detail, true);
+                }
+            });
+        }
+
+        // 搜索病人
+        function searchPatients() {
+            const q = document.getElementById('searchInput').value.trim();
+            if (!q) { document.getElementById('searchResults').innerHTML = ''; return; }
+            fetch('/api/search_patient?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(list => {
+                let html = '';
+                list.forEach(p => {
+                    const balanceClass = p.balance < 0 ? 'balance low' : 'balance';
+                    const lowTag = p.balance < 0 ? ' ⚠️欠费' : '';
+                    html += `<div class="patient-item" onclick="selectPatient(${p.id}, '${p.name}', ${p.balance})">
+                        <span>${p.name} (${p.phone})</span>
+                        <span class="${balanceClass}">¥${p.balance}${lowTag}</span>
+                    </div>`;
+                });
+                document.getElementById('searchResults').innerHTML = html || '<p style="color:#999;padding:10px;">未找到病人</p>';
+            });
+        }
+
+        // 选中病人
+        function selectPatient(id, name, balance) {
+            setSelectedPatientId(id);
+            document.getElementById('selectedPatientTitle').textContent = '👤 ' + name;
+            document.getElementById('selectedBalance').textContent = '¥' + balance;
+            document.getElementById('selectedBalance').className = 'balance' + (balance < 0 ? ' low' : '');
+            document.getElementById('operationCard').style.display = 'block';
+            document.getElementById('opMsg').style.display = 'none';
+            loadRecords(id);
+        }
+
+        // 加载该病人记录
+        function loadRecords(patientId) {
+            fetch('/api/patient_records?patient_id=' + patientId)
+            .then(r => r.json())
+            .then(data => {
+                let html = '<h3 style="margin-top:20px;font-size:15px;color:#666;">📋 针灸记录</h3>';
+                if (data.treatments.length === 0) {
+                    html += '<p style="color:#999;">暂无针灸记录</p>';
+                } else {
+                    html += '<table><tr><th>日期</th><th>金额</th><th>打卡</th></tr>';
+                    data.treatments.forEach(t => {
+                        html += `<tr><td>${t.date}</td><td>¥${t.amount}</td><td>${t.checked_in ? '✅已打卡' : '⏳未打卡'}</td></tr>`;
+                    });
+                    html += '</table>';
+                }
+                // 充值记录
+                html += '<h3 style="margin-top:20px;font-size:15px;color:#666;">💰 充值记录</h3>';
+                if (data.recharges.length === 0) {
+                    html += '<p style="color:#999;">暂无充值记录</p>';
+                } else {
+                    html += '<table><tr><th>时间</th><th>金额</th></tr>';
+                    data.recharges.forEach(r => {
+                        html += `<tr><td>${r.created_at}</td><td>¥${r.amount}</td></tr>`;
+                    });
+                    html += '</table>';
+                }
+                document.getElementById('patientRecords').innerHTML = html;
+            });
+        }
+
+        // 充值
+        function recharge() {
+            const patientId = getSelectedPatientId();
+            const amount = document.getElementById('rechargeAmount').value;
+            if (!patientId || !amount || amount <= 0) { showMsg('opMsg', '请输入有效金额', true); return; }
+            fetch('/api/recharge', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({patient_id: parseInt(patientId), amount: parseFloat(amount)})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    showMsg('opMsg', '充值成功！', false);
+                    document.getElementById('rechargeAmount').value = '';
+                    refreshPatient();
+                } else {
+                    showMsg('opMsg', data.detail, true);
+                }
+            });
+        }
+
+        // 扣费
+        function treat() {
+            const patientId = getSelectedPatientId();
+            const amount = document.getElementById('treatAmount').value;
+            const note = document.getElementById('treatNote').value;
+            if (!patientId || !amount || amount <= 0) { showMsg('opMsg', '请输入有效价格', true); return; }
+            fetch('/api/treat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({patient_id: parseInt(patientId), amount: parseFloat(amount), note})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    showMsg('opMsg', '扣费成功！', false);
+                    document.getElementById('treatAmount').value = '';
+                    document.getElementById('treatNote').value = '';
+                    refreshPatient();
+                } else {
+                    showMsg('opMsg', data.detail, true);
+                }
+            });
+        }
+
+        function getSelectedPatientId() {
+            return document.getElementById('selectedPatientTitle').getAttribute('data-id');
+        }
+
+        function refreshPatient() {
+            const id = getSelectedPatientId();
+            // 重新搜索刷新余额
+            fetch('/api/patient_records?patient_id=' + id)
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('selectedBalance').textContent = '¥' + data.patient.balance;
+                loadRecords(id);
+                document.getElementById('searchInput').value = data.patient.phone;
+                searchPatients();
+            });
+        }
+
+        // 导出Excel
+        function exportExcel() {
+            const month = document.getElementById('exportMonth').value;
+            if (!month) { showMsg('exportMsg', '请选择月份', true); return; }
+            window.location.href = '/api/export?month=' + month;
+        }
+
+        // 存储选中病人ID
+        document.getElementById('selectedPatientTitle').setAttribute('data-id', '');
+        function setSelectedPatientId(id) {
+            document.getElementById('selectedPatientTitle').setAttribute('data-id', id);
+        }
+    </script>
+</body>
+</html>
