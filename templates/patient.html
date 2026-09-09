@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>病人端 - 针灸打卡</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: linear-gradient(135deg, #e8f5e9, #c8e6c9); min-height: 100vh; }
+        .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 30px 0 20px; }
+        .header h1 { color: #2e7d32; font-size: 26px; }
+        .header p { color: #666; margin-top: 5px; }
+        .card { background: white; border-radius: 16px; padding: 25px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .card h2 { color: #2e7d32; font-size: 18px; margin-bottom: 15px; }
+        input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; margin-bottom: 12px; }
+        button { width: 100%; padding: 14px; background: #2e7d32; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; }
+        button:hover { background: #1b5e20; }
+        .msg { padding: 12px; border-radius: 10px; margin-top: 10px; display: none; font-size: 15px; text-align: center; }
+        .msg.error { background: #ffebee; color: #c62828; }
+        .msg.success { background: #e8f5e9; color: #2e7d32; }
+        /* 信息展示区 */
+        #infoArea { display: none; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+        .info-label { color: #888; }
+        .info-value { font-weight: bold; color: #333; }
+        .info-value.balance { color: #2e7d32; }
+        .info-value.balance.low { color: #c62828; }
+        .checkin-btn { margin-top: 15px; }
+        .checkin-btn:disabled { background: #ccc; cursor: not-allowed; }
+        /* 记录列表 */
+        .record-list { margin-top: 10px; }
+        .record-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        .status { color: #999; }
+        .status.ok { color: #2e7d32; }
+        .footer { text-align: center; color: #999; font-size: 12px; padding: 20px 0; }
+        .back-btn { width: auto; padding: 8px 20px; background: #81c784; margin-top: 5px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 针灸打卡</h1>
+            <p>输入手机号查看信息并打卡</p>
+        </div>
+
+        <!-- 查询 -->
+        <div class="card" id="searchCard">
+            <h2>📱 请输入您的手机号</h2>
+            <input type="text" id="phone" placeholder="手机号" />
+            <button onclick="queryInfo()">查询</button>
+            <div class="msg" id="queryMsg"></div>
+        </div>
+
+        <!-- 信息展示 -->
+        <div class="card" id="infoArea">
+            <h2 id="welcomeMsg"></h2>
+            <div class="info-row">
+                <span class="info-label">当前余额</span>
+                <span class="info-value balance" id="balanceDisplay"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">今天状态</span>
+                <span class="info-value" id="todayStatus"></span>
+            </div>
+            <button class="checkin-btn" id="checkinBtn" onclick="checkin()">✅ 立即打卡</button>
+            <div class="msg" id="checkinMsg"></div>
+            
+            <h3 style="margin-top:20px; color:#666; font-size:15px;">📋 最近记录</h3>
+            <div class="record-list" id="recordList"></div>
+        </div>
+
+        <div class="footer">针灸病人管理系统</div>
+    </div>
+
+    <script>
+        function showMsg(id, text, isError) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.style.display = 'block';
+            el.className = 'msg ' + (isError ? 'error' : 'success');
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        function queryInfo() {
+            const phone = document.getElementById('phone').value.trim();
+            if (!phone) { showMsg('queryMsg', '请输入手机号', true); return; }
+            fetch('/api/patient_info?phone=' + encodeURIComponent(phone))
+            .then(r => r.json())
+            .then(data => {
+                // 显示信息
+                document.getElementById('welcomeMsg').textContent = '👤 您好，' + data.name;
+                const bal = document.getElementById('balanceDisplay');
+                bal.textContent = '¥' + data.balance;
+                balanceDisplay.className = 'info-value balance' + (data.balance < 0 ? ' low' : '');
+                balanceDisplay.className = data.balance < 0 ? 'info-value balance low' : 'info-value balance';
+                const statusEl = document.getElementById('todayStatus');
+                const btn = document.getElementById('checkinBtn');
+                if (!data.has_today_record) {
+                    statusEl.textContent = '今天尚未记录，请联系医生';
+                    btn.style.display = 'none';
+                } else if (data.checked_in) {
+                    statusEl.textContent = '✅ 今天已打卡';
+                    btn.style.display = 'none';
+                } else {
+                    statusEl.textContent = '⏳ 待打卡';
+                    btn.style.display = 'block';
+                }
+                // 记录列表
+                let listHtml = '';
+                data.records.forEach(r => {
+                    const st = r.checked_in ? '<span class="status ok">✅已打卡</span>' : '<span class="status">⏳未打卡</span>';
+                    listHtml += `<div class="record-item"><span>${r.date}</span><span>¥${r.amount}</span>${st}</div>`;
+                });
+                document.getElementById('recordList').innerHTML = listHtml || '<p style="color:#999;">暂无记录</p>';
+                document.getElementById('searchCard').style.display = 'none';
+                document.getElementById('infoArea').style.display = 'block';
+            })
+            .catch(err => {
+                showMsg('queryMsg', '未找到您的记录，请确认手机号是否正确', true);
+            });
+        }
+
+        function checkin() {
+            const phone = document.getElementById('phone').value.trim();
+            fetch('/api/checkin', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    showMsg('checkinMsg', data.msg, false);
+                    setTimeout(queryInfo, 1000);
+                    queryInfo();
+                } else {
+                    showMsg('checkinMsg', data.detail, true);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
