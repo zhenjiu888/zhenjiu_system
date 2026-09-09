@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>针灸病人管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #e8f5e9, #c8e6c9, #a5d6a7);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 { color: #2e7d32; margin-bottom: 10px; font-size: 28px; }
+        p.subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
+        .btn-group { display: flex; flex-direction: column; gap: 15px; }
+        .btn {
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: block;
+        }
+        .btn-admin {
+            background: #2e7d32;
+            color: white;
+        }
+        .btn-admin:hover { background: #1b5e20; transform: translateY(-2px); }
+        .btn-patient {
+            background: #81c784;
+            color: white;
+        }
+        .btn-patient:hover { background: #66bb6a; transform: translateY(-2px); }
+        .icon { font-size: 40px; margin-bottom: 15px; }
+        .footer { margin-top: 30px; color: #999; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🏥</div>
+        <h1>针灸病人管理系统</h1>
+        <p class="subtitle">请选择你的身份进入</p>
+        <div class="btn-group">
+            <a href="/admin" class="btn btn-admin">👩‍⚕️ 医生后台</a>
+            <a href="/patient" class="btn btn-patient">🧑‍🦱 病人端</a>
+        </div>
+        <div class="footer">小安设计 · 为君君打造</div>
+    </div>
+</body>
+</html>
