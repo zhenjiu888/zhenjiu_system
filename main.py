@@ -16,15 +16,15 @@ ADMIN_PASSWORD = "8888"
 
 @app.get("/")
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.get("/admin")
 def admin_page(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin.html")
 
 @app.get("/patient")
 def patient_page(request: Request):
-    return templates.TemplateResponse("patient.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="patient.html")
 
 # 医生登录
 @app.post("/api/login")
