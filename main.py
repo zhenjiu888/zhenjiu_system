@@ -46,14 +46,14 @@ def add_patient(data: dict):
     conn.close()
     return {"success": True}
 
-# 搜索病人
+# 搜索病人（直接返回数组，前端好处理）
 @app.get("/api/search_patient")
 def search_patient(q: str):
     conn = get_conn()
     rows = conn.execute("SELECT * FROM patients WHERE name LIKE ? OR phone LIKE ?",
                         (f"%{q}%", f"%{q}%")).fetchall()
     conn.close()
-    return {"patients": [dict(r) for r in rows]}
+    return [dict(r) for r in rows]
 
 # 充值
 @app.post("/api/recharge")
@@ -66,26 +66,30 @@ def recharge(data: dict):
     conn.close()
     return {"success": True}
 
-# 针灸扣费（每天只能扣一次）
+# 针灸扣费（每天只能扣一次，金额可由前端传入）
 @app.post("/api/treat")
 def treat(data: dict):
     conn = get_conn()
     pid = data.get("patient_id")
+    note = data.get("note", "")
     today = date.today().isoformat()
     checked = conn.execute(
         "SELECT COUNT(*) FROM treatments WHERE patient_id = ? AND date = ? AND checked_in = 1",
         (pid, today)).fetchone()[0]
     if checked > 0:
         conn.close()
-        return {"success": False, "msg": "今天已治疗过"}
-    price = conn.execute("SELECT price FROM settings").fetchone()
-    price = price[0] if price else 50
-    conn.execute("INSERT INTO treatments (patient_id, date, checked_in, created_at) VALUES (?, ?, 1, ?)",
-                 (pid, today, datetime.now().isoformat()))
-    conn.execute("UPDATE patients SET total = total - ? WHERE id = ?", (price, pid))
+        return {"success": False, "msg": "今天已治疗过", "detail": "今天已治疗过"}
+    # 优先用前端传的金额，没传就用 settings 里的默认价
+    amount = data.get("amount")
+    if amount is None:
+        price_row = conn.execute("SELECT price FROM settings").fetchone()
+        amount = price_row[0] if price_row else 50
+    conn.execute("INSERT INTO treatments (patient_id, date, amount, checked_in, note, created_at) VALUES (?, ?, ?, 1, ?, ?)",
+                 (pid, today, amount, note, datetime.now().isoformat()))
+    conn.execute("UPDATE patients SET total = total - ? WHERE id = ?", (amount, pid))
     conn.commit()
     conn.close()
-    return {"success": True, "price": price}
+    return {"success": True, "price": amount}
 
 # 打卡
 @app.post("/api/checkin")
@@ -113,7 +117,7 @@ def patient_info(patient_id: int):
     return {"patient": dict(p), "records": [dict(r) for r in records]}
 
 @app.get("/api/export")
-def export_excel():
+def export_excel(month: str = None):
     from openpyxl import Workbook
     conn = get_conn()
     rows = conn.execute("SELECT * FROM patients").fetchall()
@@ -132,6 +136,7 @@ def export_excel():
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": "attachment; filename=patients.xlsx"})
 
+# 病人记录
 @app.get("/api/patient_records")
 def patient_records(patient_id: int):
     conn = get_conn()
@@ -142,7 +147,11 @@ def patient_records(patient_id: int):
     records = conn.execute(
         "SELECT * FROM treatments WHERE patient_id = ? ORDER BY date DESC", (patient_id,)).fetchall()
     conn.close()
-    return {"patient": dict(p), "records": [dict(r) for r in records]}
+    return {
+        "patient": dict(p),
+        "treatments": [dict(r) for r in records],
+        "records": [dict(r) for r in records],
+    }
 
 @app.get("/api/stats")
 def stats():
