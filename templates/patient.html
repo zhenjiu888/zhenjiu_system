@@ -96,16 +96,13 @@
                 balanceDisplay.className = data.patient.balance < 0 ? 'info-value balance low' : 'info-value balance';
                 const statusEl = document.getElementById('todayStatus');
                 const btn = document.getElementById('checkinBtn');
-                if (!data.has_today_record) {
-                    statusEl.textContent = '今天尚未记录，请联系医生';
-                    btn.style.display = 'none';
-                } else if (data.checked_in) {
-                    statusEl.textContent = '✅ 今天已打卡';
-                    btn.style.display = 'none';
-                } else {
-                    statusEl.textContent = '⏳ 待打卡';
-                    btn.style.display = 'block';
-                }
+                        if (data.checked_in) {
+            statusEl.textContent = '✅ 今天已打卡';
+            btn.style.display = 'none';
+        } else {
+            statusEl.textContent = '⏳ 待打卡';
+            btn.style.display = 'block';
+        }
                 // 记录列表
                 let listHtml = '';
                 data.records.forEach(r => {
