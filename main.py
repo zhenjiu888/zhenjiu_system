@@ -103,16 +103,23 @@ def checkin(data: dict):
     conn.close()
     return {"success": True}
 
-# 病人查询信息
+# 病人查询信息（兼容 patient_id 数字 和 phone 手机号）
 @app.get("/api/patient_info")
-def patient_info(patient_id: int):
+def patient_info(patient_id: str = None, phone: str = None):
     conn = get_conn()
-    p = conn.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+    if phone:
+        p = conn.execute("SELECT * FROM patients WHERE phone = ?", (phone,)).fetchone()
+    elif patient_id:
+        p = conn.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+    else:
+        conn.close()
+        return {"patient": None}
     if not p:
         conn.close()
         return {"patient": None}
+    pid = p["id"]
     records = conn.execute(
-        "SELECT * FROM treatments WHERE patient_id = ? ORDER BY date DESC", (patient_id,)).fetchall()
+        "SELECT * FROM treatments WHERE patient_id = ? ORDER BY date DESC", (pid,)).fetchall()
     conn.close()
     return {"patient": dict(p), "records": [dict(r) for r in records]}
 
