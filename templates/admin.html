@@ -163,7 +163,7 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.ok) {
+                if (data.success) {
                     showMsg('addMsg', '添加成功！', false);
                     document.getElementById('newName').value = '';
                     document.getElementById('newPhone').value = '';
