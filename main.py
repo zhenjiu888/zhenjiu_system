@@ -171,23 +171,67 @@ def patient_info(patient_id: str = None, phone: str = None):
 @app.get("/api/export")
 def export_excel(month: str = None):
     from openpyxl import Workbook
+    import io, datetime
+    from fastapi.responses import StreamingResponse
+
     conn = get_conn()
+
+    # 当月起始日
+    if month:
+        month_start = month + "-01"          # 传入 "2026-09" 这种
+    else:
+        month_start = datetime.date.today().strftime("%Y-%m-01")
+
     rows = conn.execute("SELECT * FROM patients").fetchall()
-    conn.close()
+
     wb = Workbook()
     ws = wb.active
     ws.title = "病人"
-    ws.append(["姓名", "电话", "余额"])
+
+    ws.append(["姓名", "电话", "余额", "当月扣款次数", "当月消费金额", "消费备注", "累计消费金额", "注册时间"])
+
     for r in rows:
-        ws.append([r["name"], r["phone"], r["balance"]])
-    import io
+        pid = r["id"]
+
+        # 当月记录
+        mrecs = conn.execute(
+            "SELECT amount, note FROM treatments WHERE patient_id = ? AND date >= ?",
+            (pid, month_start)
+        ).fetchall()
+
+        month_count = len(mrecs)
+        month_amount = sum((m["amount"] or 0) for m in mrecs)
+        month_note = "、".join(m["note"] for m in mrecs if m["note"])
+
+        # 累计消费
+        total_row = conn.execute(
+            "SELECT SUM(amount) AS s FROM treatments WHERE patient_id = ?",
+            (pid,)
+        ).fetchone()
+        total_amount = (total_row["s"] or 0) if total_row else 0
+
+        ws.append([
+            r["name"],
+            r["phone"],
+            r["balance"],
+            month_count,
+            month_amount,
+            month_note,
+            total_amount,
+            r["created_at"],
+        ])
+
+    conn.close()
+
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                             headers={"Content-Disposition": "attachment; filename=patients.xlsx"})
 
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=patients.xlsx"}
+    )
 # 病人记录
 @app.get("/api/patient_records")
 def patient_records(patient_id: int):
