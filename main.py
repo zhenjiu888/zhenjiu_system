@@ -120,8 +120,17 @@ def patient_info(patient_id: str = None, phone: str = None):
     pid = p["id"]
     records = conn.execute(
         "SELECT * FROM treatments WHERE patient_id = ? ORDER BY date DESC", (pid,)).fetchall()
+    today = date.today().isoformat()
+    checked = conn.execute(
+        "SELECT COUNT(*) FROM treatments WHERE patient_id = ? AND date = ? AND checked_in = 1",
+        (pid, today)).fetchone()[0]
     conn.close()
-    return {"patient": dict(p), "records": [dict(r) for r in records]}
+    return {
+        "patient": dict(p),
+        "records": [dict(r) for r in records],
+        "has_today_record": checked > 0,
+        "checked_in": checked > 0,
+    }
 
 @app.get("/api/export")
 def export_excel(month: str = None):
