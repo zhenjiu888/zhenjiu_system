@@ -248,12 +248,12 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.ok) {
+                if (data.success) {
                     showMsg('opMsg', '充值成功！', false);
                     document.getElementById('rechargeAmount').value = '';
                     refreshPatient();
                 } else {
-                    showMsg('opMsg', data.detail, true);
+                    showMsg('opMsg', data.detail || date.msg || '操作失败', true);
                 }
             });
         }
@@ -271,13 +271,13 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.ok) {
+                if (data.success) {
                     showMsg('opMsg', '扣费成功！', false);
                     document.getElementById('treatAmount').value = '';
                     document.getElementById('treatNote').value = '';
                     refreshPatient();
                 } else {
-                    showMsg('opMsg', data.detail, true);
+                    showMsg('opMsg', data.detail || date.msg || '操作失败', true);
                 }
             });
         }
