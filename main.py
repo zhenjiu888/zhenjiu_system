@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """针灸病人管理系统"""
 from datetime import datetime, date
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Body
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -93,15 +93,46 @@ def treat(data: dict):
 
 # 打卡
 @app.post("/api/checkin")
-def checkin(data: dict):
+async def checkin(data: dict = Body(...)):          # ← ① 用 Body 正确读取 JSON
     conn = get_conn()
-    pid = data.get("patient_id")
-    today = date.today().isoformat()
-    conn.execute("INSERT INTO treatments (patient_id, date, checked_in, created_at) VALUES (?, ?, 1, ?)",
-                 (pid, today, datetime.now().isoformat()))
-    conn.commit()
-    conn.close()
-    return {"success": True}
+    try:
+        # ② 兼容前端两种传法：手机号 或 patient_id
+        phone = data.get("phone")
+        pid = data.get("patient_id")
+
+        if phone:
+            row = conn.execute("SELECT id FROM patients WHERE phone = ?", (phone,)).fetchone()
+            if not row:
+                conn.close()
+                return {"success": False, "msg": "未找到患者", "detail": "查无此人"}
+            pid = row[0]
+
+        if pid is None:
+            conn.close()
+            return {"success": False, "msg": "缺少参数", "detail": "请传 phone 或 patient_id"}
+
+        today = date.today().isoformat()
+
+        # ③ 防重复：今天已打卡就拒绝
+        checked = conn.execute(
+            "SELECT COUNT(*) FROM treatments WHERE patient_id = ? AND date = ? AND checked_in = 1",
+            (pid, today)
+        ).fetchone()[0]
+        if checked > 0:
+            conn.close()
+            return {"success": False, "msg": "今天已打卡", "detail": "今天已治疗过"}
+
+        # ④ 插入打卡记录
+        conn.execute(
+            "INSERT INTO treatments (patient_id, date, checked_in, created_at) VALUES (?, ?, 1, ?)",
+            (pid, today, datetime.now().isoformat())
+        )
+        conn.commit()
+        conn.close()
+        return {"success": True, "msg": "打卡成功"}
+    except Exception as e:
+        conn.close()
+        return {"success": False, "msg": "打卡失败", "detail": str(e)}
 
 # 病人查询信息（兼容 patient_id 数字 和 phone 手机号）
 @app.get("/api/patient_info")
