@@ -86,6 +86,11 @@ def treat(data: dict):
         amount = price_row[0] if price_row else 50
     conn.execute("INSERT INTO treatments (patient_id, date, amount, checked_in, note, created_at) VALUES (?, ?, ?, 1, ?, ?)",
                  (pid, today, amount, note, datetime.now().isoformat()))
+      # ✅ 余额不足拦截
+    balance_row = conn.execute("SELECT balance FROM patients WHERE id = ?", (pid,)).fetchone()
+    if balance_row is None or balance_row[0] < amount:
+        conn.close()
+        return {"success": False, "msg": "余额不足", "detail": f"余额 {balance_row[0] if balance_row else 0}，本次需要 {amount}"}
     conn.execute("UPDATE patients SET balance = balance - ? WHERE id = ?", (amount, pid))
     conn.commit()
     conn.close()
@@ -124,7 +129,7 @@ async def checkin(data: dict = Body(...)):          # ← ① 用 Body 正确读
 
         # ④ 插入打卡记录
         conn.execute(
-            "INSERT INTO treatments (patient_id, date, checked_in, created_at) VALUES (?, ?, 1, ?)",
+            "INSERT INTO treatments (patient_id, date, amount, checked_in, created_at) VALUES (?, ?, 0, 1, ?)",
             (pid, today, datetime.now().isoformat())
         )
         conn.commit()
