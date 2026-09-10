@@ -121,7 +121,7 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.ok) {
+                if (data.success) {
                     document.getElementById('loginOverlay').classList.add('hidden');
                     document.getElementById('contentArea').style.display = 'block';
                     document.getElementById('exportMonth').value = new Date().toISOString().slice(0,7);
