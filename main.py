@@ -127,7 +127,7 @@ def export_excel(month: str = None):
     ws.title = "病人"
     ws.append(["姓名", "电话", "余额"])
     for r in rows:
-        ws.append([r["name"], r["phone"], r["balance"]])_
+        ws.append([r["name"], r["phone"], r["balance"]])
     import io
     buf = io.BytesIO()
     wb.save(buf)
