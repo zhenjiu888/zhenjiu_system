@@ -89,11 +89,11 @@
             .then(r => r.json())
             .then(data => {
                 // 显示信息
-                document.getElementById('welcomeMsg').textContent = '👤 您好，' + data.name;
+                document.getElementById('welcomeMsg').textContent = '👤 您好，' + data.patient.name;
                 const bal = document.getElementById('balanceDisplay');
-                bal.textContent = '¥' + data.balance;
-                balanceDisplay.className = 'info-value balance' + (data.balance < 0 ? ' low' : '');
-                balanceDisplay.className = data.balance < 0 ? 'info-value balance low' : 'info-value balance';
+                bal.textContent = '¥' + data.patient.balance;
+                balanceDisplay.className = 'info-value balance' + (data.patient.balance < 0 ? ' low' : '');
+                balanceDisplay.className = data.patient.balance < 0 ? 'info-value balance low' : 'info-value balance';
                 const statusEl = document.getElementById('todayStatus');
                 const btn = document.getElementById('checkinBtn');
                 if (!data.has_today_record) {
