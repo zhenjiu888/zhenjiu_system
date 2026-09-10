@@ -39,9 +39,9 @@ def add_patient(data: dict):
     conn = get_conn()
     name = data.get("name")
     phone = data.get("phone")
-    total = data.get("total", 0)
-    conn.execute("INSERT INTO patients (name, phone, total, created_at) VALUES (?, ?, ?, ?)",
-                 (name, phone, total, date.today().isoformat()))
+    balance = data.get("balance", 0)
+    conn.execute("INSERT INTO patients (name, phone, balance, created_at) VALUES (?, ?, ?, ?)",
+                 (name, phone, balance, date.today().isoformat()))
     conn.commit()
     conn.close()
     return {"success": True}
@@ -61,7 +61,7 @@ def recharge(data: dict):
     conn = get_conn()
     pid = data.get("patient_id")
     amount = data.get("amount", 0)
-    conn.execute("UPDATE patients SET total = total + ? WHERE id = ?", (amount, pid))
+    conn.execute("UPDATE patients SET balance = balance + ? WHERE id = ?", (amount, pid))
     conn.commit()
     conn.close()
     return {"success": True}
@@ -86,7 +86,7 @@ def treat(data: dict):
         amount = price_row[0] if price_row else 50
     conn.execute("INSERT INTO treatments (patient_id, date, amount, checked_in, note, created_at) VALUES (?, ?, ?, 1, ?, ?)",
                  (pid, today, amount, note, datetime.now().isoformat()))
-    conn.execute("UPDATE patients SET total = total - ? WHERE id = ?", (amount, pid))
+    conn.execute("UPDATE patients SET balance = balance - ? WHERE id = ?", (amount, pid))
     conn.commit()
     conn.close()
     return {"success": True, "price": amount}
@@ -127,7 +127,7 @@ def export_excel(month: str = None):
     ws.title = "病人"
     ws.append(["姓名", "电话", "余额"])
     for r in rows:
-        ws.append([r["name"], r["phone"], r["total"]])
+        ws.append([r["name"], r["phone"], r["balance"]])_
     import io
     buf = io.BytesIO()
     wb.save(buf)
