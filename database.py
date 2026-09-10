@@ -3,7 +3,7 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "zhenjiu.db")
+DB_PATH = os.path.join("/var/data", "zhenjiu.db")
 
 def get_conn():
     """获取数据库连接"""
